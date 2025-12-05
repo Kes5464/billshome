@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>billsHOME - Home</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Welcome to billsHOME</h1>
+        <nav>
+            <a href="index.html">Home</a> |
+            <a href="login.html">Login</a> |
+            <a href="register.html">Register</a> |
+            <a href="profile.html">Profile</a> |
+            <a href="airtime.html">Airtime</a> |
+            <a href="data.html">Data</a> |
+            <a href="sportybet.html">SportyBet</a> |
+            <a href="tv.html">TV Subscription</a>
+        </nav>
+    </header>
+    <main>
+        <section id="wallet">
+            <h2>Wallet Balance</h2>
+            <p id="balance">Balance: ₦0.00</p>
+            <form id="fundWalletForm">
+                <input type="number" id="fundAmount" placeholder="Amount to fund" min="0.01" step="0.01" required>
+                <input type="password" id="fundPin" placeholder="Transaction PIN" maxlength="4" pattern="\d{4}" required>
+                <button type="submit">Fund Wallet</button>
+            </form>
+        </section>
+        <section id="history">
+            <h2>Transaction History</h2>
+            <ul id="transactionList"></ul>
+        </section>
+        <h2>Utility Services</h2>
+        <ul>
+            <li><a href="airtime.html">Buy Airtime</a></li>
+            <li><a href="data.html">Buy Data</a></li>
+            <li><a href="sportybet.html">SportyBet</a></li>
+            <li><a href="tv.html">TV Subscription</a></li>
+        </ul>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>

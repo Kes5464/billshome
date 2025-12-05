@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>billsHOME - Register</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Register</h1>
+        <nav>
+            <a href="index.html">Home</a> |
+            <a href="login.html">Login</a> |
+            <a href="profile.html">Profile</a> |
+            <a href="airtime.html">Airtime</a> |
+            <a href="data.html">Data</a> |
+            <a href="sportybet.html">SportyBet</a> |
+            <a href="tv.html">TV Subscription</a>
+        </nav>
+    </header>
+    <main>
+        <form id="registerForm">
+            <label for="name">Name:</label>
+            <input type="text" id="name" required>
+            <label for="email">Email:</label>
+            <input type="email" id="email" required>
+            <label for="password">Password:</label>
+            <input type="password" id="password" required>
+            <label for="pin">Transaction PIN:</label>
+            <input type="password" id="pin" maxlength="4" pattern="\d{4}" required>
+            <button type="submit">Register</button>
+        </form>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>

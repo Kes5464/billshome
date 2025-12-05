@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>billsHOME - TV Subscription</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>TV Subscription</h1>
+        <nav>
+            <a href="index.html">Home</a> |
+            <a href="login.html">Login</a> |
+            <a href="register.html">Register</a> |
+            <a href="profile.html">Profile</a> |
+            <a href="airtime.html">Airtime</a> |
+            <a href="data.html">Data</a> |
+            <a href="sportybet.html">SportyBet</a>
+        </nav>
+    </header>
+    <main>
+        <form id="tvForm">
+            <label for="provider">Provider:</label>
+            <select id="provider" required>
+                <option value="DSTV">DSTV</option>
+                <option value="GOTV">GOTV</option>
+                <option value="StarTimes">StarTimes</option>
+            </select>
+            <label for="plan">Plan:</label>
+            <select id="plan" required>
+                <option value="Basic">Basic - ₦10</option>
+                <option value="Premium">Premium - ₦25</option>
+                <option value="Ultimate">Ultimate - ₦50</option>
+            </select>
+            <label for="pin">Transaction PIN:</label>
+            <input type="password" id="pin" maxlength="4" pattern="\d{4}" required>
+            <button type="submit">Subscribe</button>
+        </form>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>

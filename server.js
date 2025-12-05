@@ -1,0 +1,250 @@
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const app = express();
+
+app.use(express.json());
+app.use(express.static('.'));
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/')
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname)
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed'), false);
+  }
+};
+
+const upload = multer({ storage: storage, fileFilter: fileFilter });
+
+const usersFile = path.join(__dirname, 'users.json');
+
+// Helper to read users
+function readUsers() {
+    try {
+        const data = fs.readFileSync(usersFile, 'utf8');
+        return JSON.parse(data).map(user => ({ ...user, balance: user.balance || 0, profilePic: user.profilePic || null, pin: user.pin || null, transactions: user.transactions || [] }));
+    } catch (err) {
+        return [];
+    }
+}
+
+// Helper to write users
+function writeUsers(users) {
+    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+}
+
+let users = readUsers();
+
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
+app.get('/styles.css', (req, res) => {
+    res.setHeader('Content-Type', 'text/css');
+    res.sendFile(__dirname + '/styles.css');
+});
+
+app.get('/script.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(__dirname + '/script.js');
+});
+
+app.get('/login.html', (req, res) => {
+    res.sendFile(__dirname + '/login.html');
+});
+
+app.get('/register.html', (req, res) => {
+    res.sendFile(__dirname + '/register.html');
+});
+
+app.get('/profile.html', (req, res) => {
+    res.sendFile(__dirname + '/profile.html');
+});
+
+app.get('/airtime.html', (req, res) => {
+    res.sendFile(__dirname + '/airtime.html');
+});
+
+app.get('/data.html', (req, res) => {
+    res.sendFile(__dirname + '/data.html');
+});
+
+app.get('/sportybet.html', (req, res) => {
+    res.sendFile(__dirname + '/sportybet.html');
+});
+
+app.get('/tv.html', (req, res) => {
+    res.sendFile(__dirname + '/tv.html');
+});
+
+app.post('/api/register', (req, res) => {
+    const { name, email, password, pin } = req.body;
+    const existingUser = users.find(u => u.email === email);
+    if (existingUser) {
+        return res.status(400).json({ message: 'User already exists' });
+    }
+    const user = { name, email, password, pin, balance: 0, profilePic: null, transactions: [] };
+    users.push(user);
+    writeUsers(users);
+    res.json({ message: 'Registration successful' });
+});
+
+app.post('/api/login', (req, res) => {
+    const { email, password } = req.body;
+    const user = users.find(u => u.email === email && u.password === password);
+    if (user) {
+        res.json({ user });
+    } else {
+        res.status(401).json({ message: 'Invalid credentials' });
+    }
+});
+
+app.get('/api/profile', (req, res) => {
+    // For demo, return the first user; in real app, use sessions
+    if (users.length > 0) {
+        res.json(users[0]);
+    } else {
+        res.status(404).json({ message: 'No user found' });
+    }
+});
+
+app.post('/api/upload-profile-pic', upload.single('profilePic'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+    // Update user profile pic
+    if (users.length > 0) {
+        users[0].profilePic = req.file.filename;
+        writeUsers(users);
+        res.json({ message: 'Profile picture uploaded', filename: req.file.filename });
+    } else {
+        res.status(404).json({ message: 'No user found' });
+    }
+});
+
+app.post('/api/deposit', (req, res) => {
+    const { amount, pin } = req.body;
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) {
+        return res.status(400).json({ message: 'Invalid amount' });
+    }
+    if (users.length === 0 || users[0].pin !== pin) {
+        return res.status(400).json({ message: 'Invalid PIN' });
+    }
+    users[0].balance += amt;
+    users[0].transactions.push({ type: 'Deposit', amount: amt, date: new Date().toISOString() });
+    writeUsers(users);
+    res.json({ message: `Deposited ₦${amt}`, balance: users[0].balance });
+});
+
+app.post('/api/change-pin', (req, res) => {
+    const { currentPin, newPin } = req.body;
+    if (users.length === 0) {
+        return res.status(404).json({ message: 'No user found' });
+    }
+    if (users[0].pin !== currentPin) {
+        return res.status(400).json({ message: 'Current PIN is incorrect' });
+    }
+    if (!/^\d{4}$/.test(newPin)) {
+        return res.status(400).json({ message: 'New PIN must be 4 digits' });
+    }
+    users[0].pin = newPin;
+    writeUsers(users);
+    res.json({ message: 'PIN changed successfully' });
+});
+
+app.post('/api/airtime', (req, res) => {
+    if (users.length > 0) {
+        res.json({ transactions: users[0].transactions });
+    } else {
+        res.status(404).json({ message: 'No user found' });
+    }
+});
+
+app.post('/api/airtime', (req, res) => {
+    const { network, phone, amount, pin } = req.body;
+    const cost = parseFloat(amount);
+    if (users.length === 0 || users[0].pin !== pin) {
+        return res.status(400).json({ message: 'Invalid PIN' });
+    }
+    if (users[0].balance < cost) {
+        return res.status(400).json({ message: 'Insufficient balance' });
+    }
+    users[0].balance -= cost;
+    users[0].transactions.push({ type: 'Airtime Purchase', amount: -cost, date: new Date().toISOString() });
+    writeUsers(users);
+    // Simulate purchase
+    res.json({ message: `Airtime of ₦${amount} purchased for ${phone} on ${network}`, balance: users[0].balance });
+});
+
+const dataPrices = { '1GB': 5, '5GB': 20, '10GB': 35 };
+
+app.post('/api/data', (req, res) => {
+    const { phone, plan, pin } = req.body;
+    const cost = dataPrices[plan];
+    if (!cost) {
+        return res.status(400).json({ message: 'Invalid plan' });
+    }
+    if (users.length === 0 || users[0].pin !== pin) {
+        return res.status(400).json({ message: 'Invalid PIN' });
+    }
+    if (users[0].balance < cost) {
+        return res.status(400).json({ message: 'Insufficient balance' });
+    }
+    users[0].balance -= cost;
+    users[0].transactions.push({ type: 'Data Purchase', amount: -cost, date: new Date().toISOString() });
+    writeUsers(users);
+    res.json({ message: `${plan} data purchased for ${phone}`, balance: users[0].balance });
+});
+
+app.post('/api/bet', (req, res) => {
+    const { stake, odds, pin } = req.body;
+    const cost = parseFloat(stake);
+    if (users.length === 0 || users[0].pin !== pin) {
+        return res.status(400).json({ message: 'Invalid PIN' });
+    }
+    if (users[0].balance < cost) {
+        return res.status(400).json({ message: 'Insufficient balance' });
+    }
+    users[0].balance -= cost;
+    users[0].transactions.push({ type: 'Bet', amount: -cost, date: new Date().toISOString() });
+    writeUsers(users);
+    res.json({ message: `Bet placed with stake ₦${stake} at odds ${odds}`, balance: users[0].balance });
+});
+
+const tvPrices = { 'Basic': 10, 'Premium': 25, 'Ultimate': 50 };
+
+app.post('/api/tv', (req, res) => {
+    const { provider, plan, pin } = req.body;
+    const cost = tvPrices[plan];
+    if (!cost) {
+        return res.status(400).json({ message: 'Invalid plan' });
+    }
+    if (users.length === 0 || users[0].pin !== pin) {
+        return res.status(400).json({ message: 'Invalid PIN' });
+    }
+    if (users[0].balance < cost) {
+        return res.status(400).json({ message: 'Insufficient balance' });
+    }
+    users[0].balance -= cost;
+    users[0].transactions.push({ type: 'TV Subscription', amount: -cost, date: new Date().toISOString() });
+    writeUsers(users);
+    res.json({ message: `${plan} subscription for ${provider} activated`, balance: users[0].balance });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+
+module.exports = app;
