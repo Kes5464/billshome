@@ -2,10 +2,15 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const Flutterwave = require('flutterwave-node-v3');
+const cors = require('cors');
 const app = express();
 
 app.use(express.json());
+app.use(cors());
 app.use(express.static('.'));
+
+const flw = new Flutterwave(process.env.FLW_PUBLIC_KEY || 'FLWPUBK_TEST-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-X', process.env.FLW_SECRET_KEY || 'FLWSECK_TEST-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-X');
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -87,6 +92,10 @@ app.get('/tv.html', (req, res) => {
     res.sendFile(__dirname + '/tv.html');
 });
 
+app.get('/payment-success.html', (req, res) => {
+    res.sendFile(__dirname + '/payment-success.html');
+});
+
 app.post('/api/register', (req, res) => {
     const { name, email, password, pin } = req.body;
     const existingUser = users.find(u => u.email === email);
@@ -132,7 +141,7 @@ app.post('/api/upload-profile-pic', upload.single('profilePic'), (req, res) => {
     }
 });
 
-app.post('/api/deposit', (req, res) => {
+app.post('/api/deposit', async (req, res) => {
     const { amount, pin } = req.body;
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) {
@@ -141,10 +150,53 @@ app.post('/api/deposit', (req, res) => {
     if (users.length === 0 || users[0].pin !== pin) {
         return res.status(400).json({ message: 'Invalid PIN' });
     }
-    users[0].balance += amt;
-    users[0].transactions.push({ type: 'Deposit', amount: amt, date: new Date().toISOString() });
-    writeUsers(users);
-    res.json({ message: `Deposited ₦${amt}`, balance: users[0].balance });
+
+    try {
+        const payload = {
+            tx_ref: `deposit-${Date.now()}`,
+            amount: amt,
+            currency: 'NGN',
+            redirect_url: `${req.protocol}://${req.get('host')}/payment-success`,
+            customer: {
+                email: users[0].email,
+                name: users[0].name,
+            },
+            customizations: {
+                title: 'Deposit to billsHOME',
+                description: 'Fund your billsHOME wallet',
+            },
+        };
+
+        const response = await flw.Charge.card(payload);
+        res.json({ payment_link: response.data.link });
+    } catch (error) {
+        console.error('Flutterwave error:', error);
+        res.status(500).json({ message: 'Payment initiation failed' });
+    }
+});
+
+app.post('/api/flutterwave-webhook', async (req, res) => {
+    const secretHash = process.env.FLW_SECRET_HASH || 'your_webhook_secret_hash';
+    const signature = req.headers['verif-hash'];
+
+    if (!signature || signature !== secretHash) {
+        return res.status(401).send('Unauthorized');
+    }
+
+    const payload = req.body;
+
+    if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
+        const txRef = payload.data.tx_ref;
+        const amount = payload.data.amount;
+
+        if (txRef.startsWith('deposit-') && users.length > 0) {
+            users[0].balance += amount;
+            users[0].transactions.push({ type: 'Deposit', amount: amount, date: new Date().toISOString() });
+            writeUsers(users);
+        }
+    }
+
+    res.status(200).send('Webhook received');
 });
 
 app.post('/api/change-pin', (req, res) => {
@@ -163,9 +215,24 @@ app.post('/api/change-pin', (req, res) => {
     res.json({ message: 'PIN changed successfully' });
 });
 
-app.post('/api/airtime', (req, res) => {
+app.get('/api/transactions', (req, res) => {
     if (users.length > 0) {
         res.json({ transactions: users[0].transactions });
+    } else {
+        res.status(404).json({ message: 'No user found' });
+    }
+});
+
+app.get('/api/user-data', (req, res) => {
+    if (users.length > 0) {
+        const user = users[0];
+        res.json({
+            name: user.name,
+            email: user.email,
+            balance: user.balance,
+            profilePic: user.profilePic,
+            transactions: user.transactions
+        });
     } else {
         res.status(404).json({ message: 'No user found' });
     }

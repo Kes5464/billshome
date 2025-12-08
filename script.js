@@ -1,3 +1,6 @@
+// Configurable API base URL - change this to your deployed backend URL for online use
+const API_BASE = ''; // Leave empty for relative URLs (same server), or set to 'https://your-vercel-url.vercel.app' for separate hosting
+
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
@@ -5,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            fetch('/api/login', {
+            fetch(API_BASE + '/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -31,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const pin = document.getElementById('pin').value;
-            fetch('/api/register', {
+            fetch(API_BASE + '/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, password, pin })
@@ -47,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // For profile
     if (document.getElementById('profileContent')) {
-        fetch('/api/profile')
+        fetch(API_BASE + '/api/profile')
         .then(res => res.json())
         .then(data => {
             if (data.name) {
@@ -74,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const fileInput = document.getElementById('profilePic');
             if (fileInput.files.length > 0) {
                 formData.append('profilePic', fileInput.files[0]);
-                fetch('/api/upload-profile-pic', {
+                fetch(API_BASE + '/api/upload-profile-pic', {
                     method: 'POST',
                     body: formData
                 })
@@ -100,16 +103,15 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const amount = document.getElementById('depositAmount').value;
             const pin = document.getElementById('depositPin').value;
-            fetch('/api/deposit', {
+            fetch(API_BASE + '/api/deposit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ amount, pin })
             })
             .then(res => res.json())
             .then(data => {
-                if (data.balance !== undefined) {
-                    document.getElementById('userBalance').textContent = 'Balance: ₦' + data.balance.toFixed(2);
-                    alert(data.message);
+                if (data.payment_link) {
+                    window.location.href = data.payment_link;
                 } else {
                     alert(data.message);
                 }
@@ -124,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const currentPin = document.getElementById('currentPin').value;
             const newPin = document.getElementById('newPin').value;
-            fetch('/api/change-pin', {
+            fetch(API_BASE + '/api/change-pin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ currentPin, newPin })
@@ -145,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const phone = document.getElementById('phone').value;
             const amount = document.getElementById('amount').value;
             const pin = document.getElementById('pin').value;
-            fetch('/api/airtime', {
+            fetch(API_BASE + '/api/airtime', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ network, phone, amount, pin })
@@ -168,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const phone = document.getElementById('phone').value;
             const plan = document.getElementById('plan').value;
             const pin = document.getElementById('pin').value;
-            fetch('/api/data', {
+            fetch(API_BASE + '/api/data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone, plan, pin })
@@ -191,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const stake = document.getElementById('stake').value;
             const odds = document.getElementById('odds').value;
             const pin = document.getElementById('pin').value;
-            fetch('/api/bet', {
+            fetch(API_BASE + '/api/bet', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ stake, odds, pin })
@@ -214,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const provider = document.getElementById('provider').value;
             const plan = document.getElementById('plan').value;
             const pin = document.getElementById('pin').value;
-            fetch('/api/tv', {
+            fetch(API_BASE + '/api/tv', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ provider, plan, pin })
@@ -232,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // For home page
     if (document.getElementById('wallet')) {
-        fetch('/api/profile')
+        fetch(API_BASE + '/api/profile')
         .then(res => res.json())
         .then(data => {
             if (data.balance !== undefined) {
@@ -241,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => console.log('No user data'));
 
-        fetch('/api/transactions')
+        fetch(API_BASE + '/api/transactions')
         .then(res => res.json())
         .then(data => {
             const list = document.getElementById('transactionList');
@@ -262,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const amount = document.getElementById('fundAmount').value;
             const pin = document.getElementById('fundPin').value;
-            fetch('/api/deposit', {
+            fetch(API_BASE + '/api/deposit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ amount, pin })
