@@ -4,6 +4,7 @@ const path = require('path');
 const multer = require('multer');
 const Flutterwave = require('flutterwave-node-v3');
 const cors = require('cors');
+const { MongoClient } = require('mongodb');
 const app = express();
 
 app.use(express.json());
@@ -11,6 +12,25 @@ app.use(cors());
 app.use(express.static('.'));
 
 const flw = new Flutterwave(process.env.FLW_PUBLIC_KEY || 'FLWPUBK_TEST-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-X', process.env.FLW_SECRET_KEY || 'FLWSECK_TEST-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-X');
+
+// MongoDB connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
+const DB_NAME = 'billshome';
+let db;
+let usersCollection;
+
+async function connectDB() {
+    try {
+        const client = await MongoClient.connect(MONGODB_URI);
+        db = client.db(DB_NAME);
+        usersCollection = db.collection('users');
+        console.log('Connected to MongoDB');
+    } catch (err) {
+        console.error('MongoDB connection error:', err);
+    }
+}
+
+connectDB();
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -31,9 +51,9 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage: storage, fileFilter: fileFilter });
 
+// Keep file-based storage as fallback for local development
 const usersFile = path.join(__dirname, 'users.json');
 
-// Helper to read users
 function readUsers() {
     try {
         const data = fs.readFileSync(usersFile, 'utf8');
@@ -43,9 +63,12 @@ function readUsers() {
     }
 }
 
-// Helper to write users
 function writeUsers(users) {
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    try {
+        fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    } catch (err) {
+        console.log('File write skipped (running on serverless)');
+    }
 }
 
 let users = readUsers();
@@ -96,34 +119,73 @@ app.get('/payment-success.html', (req, res) => {
     res.sendFile(__dirname + '/payment-success.html');
 });
 
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
     const { name, email, password, pin } = req.body;
-    const existingUser = users.find(u => u.email === email);
-    if (existingUser) {
-        return res.status(400).json({ message: 'User already exists' });
+    
+    try {
+        if (usersCollection) {
+            // Use MongoDB
+            const existingUser = await usersCollection.findOne({ email });
+            if (existingUser) {
+                return res.status(400).json({ message: 'User already exists' });
+            }
+            const user = { name, email, password, pin, balance: 0, profilePic: null, transactions: [], createdAt: new Date() };
+            await usersCollection.insertOne(user);
+            res.json({ message: 'Registration successful' });
+        } else {
+            // Fallback to file storage (local only)
+            const existingUser = users.find(u => u.email === email);
+            if (existingUser) {
+                return res.status(400).json({ message: 'User already exists' });
+            }
+            const user = { name, email, password, pin, balance: 0, profilePic: null, transactions: [] };
+            users.push(user);
+            writeUsers(users);
+            res.json({ message: 'Registration successful' });
+        }
+    } catch (err) {
+        console.error('Registration error:', err);
+        res.status(500).json({ message: 'Registration failed' });
     }
-    const user = { name, email, password, pin, balance: 0, profilePic: null, transactions: [] };
-    users.push(user);
-    writeUsers(users);
-    res.json({ message: 'Registration successful' });
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
-    const user = users.find(u => u.email === email && u.password === password);
-    if (user) {
-        res.json({ user });
-    } else {
-        res.status(401).json({ message: 'Invalid credentials' });
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({ email, password });
+        } else {
+            user = users.find(u => u.email === email && u.password === password);
+        }
+        if (user) {
+            res.json({ user });
+        } else {
+            res.status(401).json({ message: 'Invalid credentials' });
+        }
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ message: 'Login failed' });
     }
 });
 
-app.get('/api/profile', (req, res) => {
+app.get('/api/profile', async (req, res) => {
     // For demo, return the first user; in real app, use sessions
-    if (users.length > 0) {
-        res.json(users[0]);
-    } else {
-        res.status(404).json({ message: 'No user found' });
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+        if (user) {
+            res.json(user);
+        } else {
+            res.status(404).json({ message: 'No user found' });
+        }
+    } catch (err) {
+        console.error('Profile error:', err);
+        res.status(500).json({ message: 'Failed to load profile' });
     }
 });
 
