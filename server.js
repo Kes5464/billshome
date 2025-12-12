@@ -209,19 +209,27 @@ app.post('/api/deposit', async (req, res) => {
     if (isNaN(amt) || amt <= 0) {
         return res.status(400).json({ message: 'Invalid amount' });
     }
-    if (users.length === 0 || users[0].pin !== pin) {
-        return res.status(400).json({ message: 'Invalid PIN' });
-    }
 
     try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+
+        if (!user || user.pin !== pin) {
+            return res.status(400).json({ message: 'Invalid PIN' });
+        }
+
         const payload = {
             tx_ref: `deposit-${Date.now()}`,
             amount: amt,
             currency: 'NGN',
             redirect_url: `${req.protocol}://${req.get('host')}/payment-success`,
             customer: {
-                email: users[0].email,
-                name: users[0].name,
+                email: user.email,
+                name: user.name,
             },
             customizations: {
                 title: 'Deposit to billsHOME',
@@ -251,124 +259,288 @@ app.post('/api/flutterwave-webhook', async (req, res) => {
         const txRef = payload.data.tx_ref;
         const amount = payload.data.amount;
 
-        if (txRef.startsWith('deposit-') && users.length > 0) {
-            users[0].balance += amount;
-            users[0].transactions.push({ type: 'Deposit', amount: amount, date: new Date().toISOString() });
-            writeUsers(users);
+        if (txRef.startsWith('deposit-')) {
+            try {
+                if (usersCollection) {
+                    const user = await usersCollection.findOne({});
+                    if (user) {
+                        await usersCollection.updateOne(
+                            { _id: user._id },
+                            {
+                                $inc: { balance: amount },
+                                $push: { transactions: { type: 'Deposit', amount: amount, date: new Date().toISOString() } }
+                            }
+                        );
+                    }
+                } else {
+                    if (users.length > 0) {
+                        users[0].balance += amount;
+                        users[0].transactions.push({ type: 'Deposit', amount: amount, date: new Date().toISOString() });
+                        writeUsers(users);
+                    }
+                }
+            } catch (err) {
+                console.error('Webhook update error:', err);
+            }
         }
     }
 
     res.status(200).send('Webhook received');
 });
 
-app.post('/api/change-pin', (req, res) => {
+app.post('/api/change-pin', async (req, res) => {
     const { currentPin, newPin } = req.body;
-    if (users.length === 0) {
-        return res.status(404).json({ message: 'No user found' });
-    }
-    if (users[0].pin !== currentPin) {
-        return res.status(400).json({ message: 'Current PIN is incorrect' });
-    }
-    if (!/^\d{4}$/.test(newPin)) {
-        return res.status(400).json({ message: 'New PIN must be 4 digits' });
-    }
-    users[0].pin = newPin;
-    writeUsers(users);
-    res.json({ message: 'PIN changed successfully' });
-});
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
 
-app.get('/api/transactions', (req, res) => {
-    if (users.length > 0) {
-        res.json({ transactions: users[0].transactions });
-    } else {
-        res.status(404).json({ message: 'No user found' });
-    }
-});
+        if (!user) {
+            return res.status(404).json({ message: 'No user found' });
+        }
+        if (user.pin !== currentPin) {
+            return res.status(400).json({ message: 'Current PIN is incorrect' });
+        }
+        if (!/^\d{4}$/.test(newPin)) {
+            return res.status(400).json({ message: 'New PIN must be 4 digits' });
+        }
 
-app.get('/api/user-data', (req, res) => {
-    if (users.length > 0) {
-        const user = users[0];
-        res.json({
-            name: user.name,
-            email: user.email,
-            balance: user.balance,
-            profilePic: user.profilePic,
-            transactions: user.transactions
-        });
-    } else {
-        res.status(404).json({ message: 'No user found' });
+        if (usersCollection) {
+            await usersCollection.updateOne({ _id: user._id }, { $set: { pin: newPin } });
+        } else {
+            users[0].pin = newPin;
+            writeUsers(users);
+        }
+        res.json({ message: 'PIN changed successfully' });
+    } catch (err) {
+        console.error('Change PIN error:', err);
+        res.status(500).json({ message: 'Failed to change PIN' });
     }
 });
 
-app.post('/api/airtime', (req, res) => {
+app.get('/api/transactions', async (req, res) => {
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+        if (user) {
+            res.json({ transactions: user.transactions || [] });
+        } else {
+            res.status(404).json({ message: 'No user found' });
+        }
+    } catch (err) {
+        console.error('Transactions error:', err);
+        res.status(500).json({ message: 'Failed to load transactions' });
+    }
+});
+
+app.get('/api/user-data', async (req, res) => {
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+        if (user) {
+            res.json({
+                name: user.name,
+                email: user.email,
+                balance: user.balance,
+                profilePic: user.profilePic,
+                transactions: user.transactions
+            });
+        } else {
+            res.status(404).json({ message: 'No user found' });
+        }
+    } catch (err) {
+        console.error('User data error:', err);
+        res.status(500).json({ message: 'Failed to load user data' });
+    }
+});
+
+app.post('/api/airtime', async (req, res) => {
     const { network, phone, amount, pin } = req.body;
     const cost = parseFloat(amount);
-    if (users.length === 0 || users[0].pin !== pin) {
-        return res.status(400).json({ message: 'Invalid PIN' });
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+
+        if (!user || user.pin !== pin) {
+            return res.status(400).json({ message: 'Invalid PIN' });
+        }
+        if (user.balance < cost) {
+            return res.status(400).json({ message: 'Insufficient balance' });
+        }
+
+        const newBalance = user.balance - cost;
+        const transaction = { type: 'Airtime Purchase', amount: -cost, date: new Date().toISOString() };
+
+        if (usersCollection) {
+            await usersCollection.updateOne(
+                { _id: user._id },
+                {
+                    $set: { balance: newBalance },
+                    $push: { transactions: transaction }
+                }
+            );
+        } else {
+            users[0].balance = newBalance;
+            users[0].transactions.push(transaction);
+            writeUsers(users);
+        }
+
+        res.json({ message: `Airtime of ₦${amount} purchased for ${phone} on ${network}`, balance: newBalance });
+    } catch (err) {
+        console.error('Airtime error:', err);
+        res.status(500).json({ message: 'Purchase failed' });
     }
-    if (users[0].balance < cost) {
-        return res.status(400).json({ message: 'Insufficient balance' });
-    }
-    users[0].balance -= cost;
-    users[0].transactions.push({ type: 'Airtime Purchase', amount: -cost, date: new Date().toISOString() });
-    writeUsers(users);
-    // Simulate purchase
-    res.json({ message: `Airtime of ₦${amount} purchased for ${phone} on ${network}`, balance: users[0].balance });
 });
 
 const dataPrices = { '1GB': 5, '5GB': 20, '10GB': 35 };
 
-app.post('/api/data', (req, res) => {
+app.post('/api/data', async (req, res) => {
     const { phone, plan, pin } = req.body;
     const cost = dataPrices[plan];
     if (!cost) {
         return res.status(400).json({ message: 'Invalid plan' });
     }
-    if (users.length === 0 || users[0].pin !== pin) {
-        return res.status(400).json({ message: 'Invalid PIN' });
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+
+        if (!user || user.pin !== pin) {
+            return res.status(400).json({ message: 'Invalid PIN' });
+        }
+        if (user.balance < cost) {
+            return res.status(400).json({ message: 'Insufficient balance' });
+        }
+
+        const newBalance = user.balance - cost;
+        const transaction = { type: 'Data Purchase', amount: -cost, date: new Date().toISOString() };
+
+        if (usersCollection) {
+            await usersCollection.updateOne(
+                { _id: user._id },
+                {
+                    $set: { balance: newBalance },
+                    $push: { transactions: transaction }
+                }
+            );
+        } else {
+            users[0].balance = newBalance;
+            users[0].transactions.push(transaction);
+            writeUsers(users);
+        }
+
+        res.json({ message: `${plan} data purchased for ${phone}`, balance: newBalance });
+    } catch (err) {
+        console.error('Data purchase error:', err);
+        res.status(500).json({ message: 'Purchase failed' });
     }
-    if (users[0].balance < cost) {
-        return res.status(400).json({ message: 'Insufficient balance' });
-    }
-    users[0].balance -= cost;
-    users[0].transactions.push({ type: 'Data Purchase', amount: -cost, date: new Date().toISOString() });
-    writeUsers(users);
-    res.json({ message: `${plan} data purchased for ${phone}`, balance: users[0].balance });
 });
 
-app.post('/api/bet', (req, res) => {
+app.post('/api/bet', async (req, res) => {
     const { stake, odds, pin } = req.body;
     const cost = parseFloat(stake);
-    if (users.length === 0 || users[0].pin !== pin) {
-        return res.status(400).json({ message: 'Invalid PIN' });
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+
+        if (!user || user.pin !== pin) {
+            return res.status(400).json({ message: 'Invalid PIN' });
+        }
+        if (user.balance < cost) {
+            return res.status(400).json({ message: 'Insufficient balance' });
+        }
+
+        const newBalance = user.balance - cost;
+        const transaction = { type: 'Bet', amount: -cost, date: new Date().toISOString() };
+
+        if (usersCollection) {
+            await usersCollection.updateOne(
+                { _id: user._id },
+                {
+                    $set: { balance: newBalance },
+                    $push: { transactions: transaction }
+                }
+            );
+        } else {
+            users[0].balance = newBalance;
+            users[0].transactions.push(transaction);
+            writeUsers(users);
+        }
+
+        res.json({ message: `Bet placed with stake ₦${stake} at odds ${odds}`, balance: newBalance });
+    } catch (err) {
+        console.error('Bet error:', err);
+        res.status(500).json({ message: 'Bet failed' });
     }
-    if (users[0].balance < cost) {
-        return res.status(400).json({ message: 'Insufficient balance' });
-    }
-    users[0].balance -= cost;
-    users[0].transactions.push({ type: 'Bet', amount: -cost, date: new Date().toISOString() });
-    writeUsers(users);
-    res.json({ message: `Bet placed with stake ₦${stake} at odds ${odds}`, balance: users[0].balance });
 });
 
 const tvPrices = { 'Basic': 10, 'Premium': 25, 'Ultimate': 50 };
 
-app.post('/api/tv', (req, res) => {
+app.post('/api/tv', async (req, res) => {
     const { provider, plan, pin } = req.body;
     const cost = tvPrices[plan];
     if (!cost) {
         return res.status(400).json({ message: 'Invalid plan' });
     }
-    if (users.length === 0 || users[0].pin !== pin) {
-        return res.status(400).json({ message: 'Invalid PIN' });
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+
+        if (!user || user.pin !== pin) {
+            return res.status(400).json({ message: 'Invalid PIN' });
+        }
+        if (user.balance < cost) {
+            return res.status(400).json({ message: 'Insufficient balance' });
+        }
+
+        const newBalance = user.balance - cost;
+        const transaction = { type: 'TV Subscription', amount: -cost, date: new Date().toISOString() };
+
+        if (usersCollection) {
+            await usersCollection.updateOne(
+                { _id: user._id },
+                {
+                    $set: { balance: newBalance },
+                    $push: { transactions: transaction }
+                }
+            );
+        } else {
+            users[0].balance = newBalance;
+            users[0].transactions.push(transaction);
+            writeUsers(users);
+        }
+
+        res.json({ message: `${plan} subscription for ${provider} activated`, balance: newBalance });
+    } catch (err) {
+        console.error('TV subscription error:', err);
+        res.status(500).json({ message: 'Subscription failed' });
     }
-    if (users[0].balance < cost) {
-        return res.status(400).json({ message: 'Insufficient balance' });
-    }
-    users[0].balance -= cost;
-    users[0].transactions.push({ type: 'TV Subscription', amount: -cost, date: new Date().toISOString() });
-    writeUsers(users);
-    res.json({ message: `${plan} subscription for ${provider} activated`, balance: users[0].balance });
 });
 
 const PORT = process.env.PORT || 3000;
