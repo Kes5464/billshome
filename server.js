@@ -236,6 +236,7 @@ app.post('/api/upload-profile-pic', upload.single('profilePic'), async (req, res
 
 app.post('/api/deposit', async (req, res) => {
     const { amount, pin, userEmail } = req.body;
+    console.log('Deposit request - Email:', userEmail, 'PIN:', pin);
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) {
         return res.status(400).json({ message: 'Invalid amount' });
@@ -245,11 +246,18 @@ app.post('/api/deposit', async (req, res) => {
         let user;
         if (usersCollection) {
             user = await usersCollection.findOne({ email: userEmail });
+            console.log('User found in DB:', user ? user.email : 'NOT FOUND');
         } else {
             user = users.find(u => u.email === userEmail);
         }
 
-        if (!user || user.pin !== pin) {
+        if (!user) {
+            console.log('User not found for email:', userEmail);
+            return res.status(404).json({ message: 'User not found. Please login again.' });
+        }
+        
+        if (user.pin !== pin) {
+            console.log('PIN mismatch - Provided:', pin, 'Stored:', user.pin);
             return res.status(400).json({ message: 'Invalid PIN' });
         }
 

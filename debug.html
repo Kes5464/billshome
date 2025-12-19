@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug - billsHOME</title>
+</head>
+<body>
+    <h1>Debug Info</h1>
+    <div id="debug"></div>
+    <script>
+        const userEmail = localStorage.getItem('userEmail');
+        const debugDiv = document.getElementById('debug');
+        debugDiv.innerHTML = `
+            <p><strong>Logged in email:</strong> ${userEmail || 'NOT LOGGED IN'}</p>
+            <p><strong>localStorage keys:</strong> ${Object.keys(localStorage).join(', ')}</p>
+            <hr>
+            <button onclick="location.href='login.html'">Go to Login</button>
+            <button onclick="localStorage.clear(); alert('Cleared'); location.reload();">Clear Storage</button>
+        `;
+    </script>
+</body>
+</html>

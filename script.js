@@ -74,6 +74,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // For profile
     if (document.getElementById('profileContent')) {
         const userEmail = localStorage.getItem('userEmail');
+        console.log('Profile - User email:', userEmail);
+        if (!userEmail) {
+            alert('Please login first');
+            window.location.href = 'login.html';
+            return;
+        }
         fetch(API_BASE + '/api/profile?userEmail=' + encodeURIComponent(userEmail))
         .then(res => res.json())
         .then(data => {
@@ -158,6 +164,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const amount = document.getElementById('depositAmount').value;
             const pin = document.getElementById('depositPin').value;
             const userEmail = localStorage.getItem('userEmail');
+            console.log('Deposit - User email:', userEmail);
+            if (!userEmail) {
+                alert('Please login first');
+                window.location.href = 'login.html';
+                return;
+            }
             fetch(API_BASE + '/api/deposit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
