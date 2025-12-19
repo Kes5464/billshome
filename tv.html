@@ -25,13 +25,15 @@
             <select id="provider" required>
                 <option value="DSTV">DSTV</option>
                 <option value="GOTV">GOTV</option>
-                <option value="StarTimes">StarTimes</option>
+                <option value="Startimes">Startimes</option>
             </select>
+            <label for="smartcard">Smartcard Number:</label>
+            <input type="text" id="smartcard" required>
             <label for="plan">Plan:</label>
             <select id="plan" required>
-                <option value="Basic">Basic - ₦10</option>
-                <option value="Premium">Premium - ₦25</option>
-                <option value="Ultimate">Ultimate - ₦50</option>
+                <option value="Basic">Basic - ₦1,000</option>
+                <option value="Premium">Premium - ₦2,500</option>
+                <option value="Ultimate">Ultimate - ₦5,000</option>
             </select>
             <label for="pin">Transaction PIN:</label>
             <input type="password" id="pin" maxlength="4" pattern="\d{4}" required>

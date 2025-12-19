@@ -21,13 +21,20 @@
     </header>
     <main>
         <form id="dataForm">
+            <label for="network">Network:</label>
+            <select id="network" required>
+                <option value="MTN">MTN</option>
+                <option value="Airtel">Airtel</option>
+                <option value="Glo">Glo</option>
+                <option value="9mobile">9mobile</option>
+            </select>
             <label for="phone">Phone Number:</label>
             <input type="tel" id="phone" required>
             <label for="plan">Data Plan:</label>
             <select id="plan" required>
-                <option value="1GB">1GB - ₦5</option>
-                <option value="5GB">5GB - ₦20</option>
-                <option value="10GB">10GB - ₦35</option>
+                <option value="1GB">1GB - ₦500</option>
+                <option value="5GB">5GB - ₦2,000</option>
+                <option value="10GB">10GB - ₦3,500</option>
             </select>
             <label for="pin">Transaction PIN:</label>
             <input type="password" id="pin" maxlength="4" pattern="\d{4}" required>

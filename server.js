@@ -383,34 +383,62 @@ app.post('/api/airtime', async (req, res) => {
             return res.status(400).json({ message: 'Insufficient balance' });
         }
 
-        const newBalance = user.balance - cost;
-        const transaction = { type: 'Airtime Purchase', amount: -cost, date: new Date().toISOString() };
+        // Make real Flutterwave Bill Payment API call
+        const payload = {
+            country: 'NG',
+            customer: phone,
+            amount: cost,
+            recurrence: 'ONCE',
+            type: network.toUpperCase(),
+            reference: `airtime_${Date.now()}_${user._id || 'local'}`
+        };
 
-        if (usersCollection) {
-            await usersCollection.updateOne(
-                { _id: user._id },
-                {
-                    $set: { balance: newBalance },
-                    $push: { transactions: transaction }
-                }
-            );
+        const response = await flw.Bills.create_bill(payload);
+
+        if (response.status === 'success') {
+            const newBalance = user.balance - cost;
+            const transaction = { 
+                type: 'Airtime Purchase', 
+                amount: -cost, 
+                date: new Date().toISOString(),
+                reference: payload.reference,
+                phone: phone,
+                network: network
+            };
+
+            if (usersCollection) {
+                await usersCollection.updateOne(
+                    { _id: user._id },
+                    {
+                        $set: { balance: newBalance },
+                        $push: { transactions: transaction }
+                    }
+                );
+            } else {
+                users[0].balance = newBalance;
+                users[0].transactions.push(transaction);
+                writeUsers(users);
+            }
+
+            res.json({ 
+                message: `Airtime of ₦${amount} purchased for ${phone} on ${network}`, 
+                balance: newBalance,
+                reference: payload.reference
+            });
         } else {
-            users[0].balance = newBalance;
-            users[0].transactions.push(transaction);
-            writeUsers(users);
+            res.status(400).json({ message: response.message || 'Airtime purchase failed' });
         }
-
-        res.json({ message: `Airtime of ₦${amount} purchased for ${phone} on ${network}`, balance: newBalance });
     } catch (err) {
         console.error('Airtime error:', err);
-        res.status(500).json({ message: 'Purchase failed' });
+        res.status(500).json({ message: 'Purchase failed: ' + err.message });
     }
 });
 
-const dataPrices = { '1GB': 5, '5GB': 20, '10GB': 35 };
+const dataPrices = { '1GB': 500, '5GB': 2000, '10GB': 3500 };
+const dataBillerCodes = { '1GB': 'BIL099', '5GB': 'BIL099', '10GB': 'BIL099' };
 
 app.post('/api/data', async (req, res) => {
-    const { phone, plan, pin } = req.body;
+    const { phone, plan, network, pin } = req.body;
     const cost = dataPrices[plan];
     if (!cost) {
         return res.status(400).json({ message: 'Invalid plan' });
@@ -430,27 +458,54 @@ app.post('/api/data', async (req, res) => {
             return res.status(400).json({ message: 'Insufficient balance' });
         }
 
-        const newBalance = user.balance - cost;
-        const transaction = { type: 'Data Purchase', amount: -cost, date: new Date().toISOString() };
+        // Make real Flutterwave Bill Payment API call for data
+        const payload = {
+            country: 'NG',
+            customer: phone,
+            amount: cost,
+            recurrence: 'ONCE',
+            type: `${network.toUpperCase()}_DATA`,
+            reference: `data_${Date.now()}_${user._id || 'local'}`
+        };
 
-        if (usersCollection) {
-            await usersCollection.updateOne(
-                { _id: user._id },
-                {
-                    $set: { balance: newBalance },
-                    $push: { transactions: transaction }
-                }
-            );
+        const response = await flw.Bills.create_bill(payload);
+
+        if (response.status === 'success') {
+            const newBalance = user.balance - cost;
+            const transaction = { 
+                type: 'Data Purchase', 
+                amount: -cost, 
+                date: new Date().toISOString(),
+                reference: payload.reference,
+                phone: phone,
+                plan: plan
+            };
+
+            if (usersCollection) {
+                await usersCollection.updateOne(
+                    { _id: user._id },
+                    {
+                        $set: { balance: newBalance },
+                        $push: { transactions: transaction }
+                    }
+                );
+            } else {
+                users[0].balance = newBalance;
+                users[0].transactions.push(transaction);
+                writeUsers(users);
+            }
+
+            res.json({ 
+                message: `${plan} data purchased for ${phone}`, 
+                balance: newBalance,
+                reference: payload.reference
+            });
         } else {
-            users[0].balance = newBalance;
-            users[0].transactions.push(transaction);
-            writeUsers(users);
+            res.status(400).json({ message: response.message || 'Data purchase failed' });
         }
-
-        res.json({ message: `${plan} data purchased for ${phone}`, balance: newBalance });
     } catch (err) {
         console.error('Data purchase error:', err);
-        res.status(500).json({ message: 'Purchase failed' });
+        res.status(500).json({ message: 'Purchase failed: ' + err.message });
     }
 });
 
@@ -496,10 +551,15 @@ app.post('/api/bet', async (req, res) => {
     }
 });
 
-const tvPrices = { 'Basic': 10, 'Premium': 25, 'Ultimate': 50 };
+const tvPrices = { 'Basic': 1000, 'Premium': 2500, 'Ultimate': 5000 };
+const tvBillerCodes = { 
+    'DSTV': 'BIL119',
+    'GOTV': 'BIL120', 
+    'Startimes': 'BIL121'
+};
 
 app.post('/api/tv', async (req, res) => {
-    const { provider, plan, pin } = req.body;
+    const { provider, plan, smartcard, pin } = req.body;
     const cost = tvPrices[plan];
     if (!cost) {
         return res.status(400).json({ message: 'Invalid plan' });
@@ -519,27 +579,54 @@ app.post('/api/tv', async (req, res) => {
             return res.status(400).json({ message: 'Insufficient balance' });
         }
 
-        const newBalance = user.balance - cost;
-        const transaction = { type: 'TV Subscription', amount: -cost, date: new Date().toISOString() };
+        // Make real Flutterwave Bill Payment API call for TV
+        const payload = {
+            country: 'NG',
+            customer: smartcard || '+2348000000000',
+            amount: cost,
+            recurrence: 'ONCE',
+            type: provider.toUpperCase(),
+            reference: `tv_${Date.now()}_${user._id || 'local'}`
+        };
 
-        if (usersCollection) {
-            await usersCollection.updateOne(
-                { _id: user._id },
-                {
-                    $set: { balance: newBalance },
-                    $push: { transactions: transaction }
-                }
-            );
+        const response = await flw.Bills.create_bill(payload);
+
+        if (response.status === 'success') {
+            const newBalance = user.balance - cost;
+            const transaction = { 
+                type: 'TV Subscription', 
+                amount: -cost, 
+                date: new Date().toISOString(),
+                reference: payload.reference,
+                provider: provider,
+                plan: plan
+            };
+
+            if (usersCollection) {
+                await usersCollection.updateOne(
+                    { _id: user._id },
+                    {
+                        $set: { balance: newBalance },
+                        $push: { transactions: transaction }
+                    }
+                );
+            } else {
+                users[0].balance = newBalance;
+                users[0].transactions.push(transaction);
+                writeUsers(users);
+            }
+
+            res.json({ 
+                message: `${plan} subscription for ${provider} activated`, 
+                balance: newBalance,
+                reference: payload.reference
+            });
         } else {
-            users[0].balance = newBalance;
-            users[0].transactions.push(transaction);
-            writeUsers(users);
+            res.status(400).json({ message: response.message || 'TV subscription failed' });
         }
-
-        res.json({ message: `${plan} subscription for ${provider} activated`, balance: newBalance });
     } catch (err) {
         console.error('TV subscription error:', err);
-        res.status(500).json({ message: 'Subscription failed' });
+        res.status(500).json({ message: 'Subscription failed: ' + err.message });
     }
 });
 

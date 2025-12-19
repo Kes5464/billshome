@@ -167,13 +167,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (dataForm) {
         dataForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            const network = document.getElementById('network').value;
             const phone = document.getElementById('phone').value;
             const plan = document.getElementById('plan').value;
             const pin = document.getElementById('pin').value;
             fetch(API_BASE + '/api/data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, plan, pin })
+                body: JSON.stringify({ phone, plan, network, pin })
             })
             .then(res => res.json())
             .then(data => {
@@ -214,12 +215,13 @@ document.addEventListener('DOMContentLoaded', function() {
         tvForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const provider = document.getElementById('provider').value;
+            const smartcard = document.getElementById('smartcard').value;
             const plan = document.getElementById('plan').value;
             const pin = document.getElementById('pin').value;
             fetch(API_BASE + '/api/tv', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider, plan, pin })
+                body: JSON.stringify({ provider, plan, smartcard, pin })
             })
             .then(res => res.json())
             .then(data => {
