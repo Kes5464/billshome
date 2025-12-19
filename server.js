@@ -32,14 +32,8 @@ async function connectDB() {
 
 connectDB();
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/')
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname)
-  }
-});
+// Use memory storage for serverless compatibility (Vercel)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
@@ -49,7 +43,11 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage: storage, fileFilter: fileFilter });
+const upload = multer({ 
+  storage: storage, 
+  fileFilter: fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // Keep file-based storage as fallback for local development
 const usersFile = path.join(__dirname, 'users.json');
@@ -174,13 +172,14 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/profile', async (req, res) => {
-    // For demo, return the first user; in real app, use sessions
+    const userEmail = req.query.userEmail;
+    
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
         if (user) {
             res.json(user);
@@ -193,17 +192,45 @@ app.get('/api/profile', async (req, res) => {
     }
 });
 
-app.post('/api/upload-profile-pic', upload.single('profilePic'), (req, res) => {
+app.post('/api/upload-profile-pic', upload.single('profilePic'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
     }
-    // Update user profile pic
-    if (users.length > 0) {
-        users[0].profilePic = req.file.filename;
-        writeUsers(users);
-        res.json({ message: 'Profile picture uploaded', filename: req.file.filename });
-    } else {
-        res.status(404).json({ message: 'No user found' });
+    
+    const userEmail = req.body.userEmail;
+    if (!userEmail) {
+        return res.status(400).json({ message: 'User email required' });
+    }
+    
+    try {
+        // Convert image to base64 for serverless compatibility
+        const base64Image = req.file.buffer.toString('base64');
+        const imageDataUrl = `data:${req.file.mimetype};base64,${base64Image}`;
+        
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({ email: userEmail });
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            
+            await usersCollection.updateOne(
+                { email: userEmail },
+                { $set: { profilePic: imageDataUrl } }
+            );
+        } else {
+            user = users.find(u => u.email === userEmail);
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            user.profilePic = imageDataUrl;
+            writeUsers(users);
+        }
+        
+        res.json({ message: 'Profile picture uploaded', profilePic: imageDataUrl });
+    } catch (err) {
+        console.error('Upload error:', err);
+        res.status(500).json({ message: 'Upload failed' });
     }
 });
 
@@ -383,12 +410,13 @@ app.post('/api/link-bank-account', async (req, res) => {
 
 // Get linked bank accounts
 app.get('/api/bank-accounts', async (req, res) => {
+    const userEmail = req.query.userEmail;
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
         if (user) {
             res.json({ bankAccounts: user.bankAccounts || [] });
@@ -507,12 +535,13 @@ app.post('/api/charge-bank-account', async (req, res) => {
 });
 
 app.get('/api/transactions', async (req, res) => {
+    const userEmail = req.query.userEmail;
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
         if (user) {
             res.json({ transactions: user.transactions || [] });

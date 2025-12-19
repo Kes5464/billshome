@@ -52,7 +52,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // For profile
     if (document.getElementById('profileContent')) {
-        fetch(API_BASE + '/api/profile')
+        const userEmail = localStorage.getItem('userEmail');
+        fetch(API_BASE + '/api/profile?userEmail=' + encodeURIComponent(userEmail))
         .then(res => res.json())
         .then(data => {
             if (data.name) {
@@ -60,12 +61,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('userEmail').textContent = 'Email: ' + data.email;
                 document.getElementById('userBalance').textContent = 'Balance: ₦' + data.balance.toFixed(2);
                 if (data.profilePic) {
-                    document.getElementById('profileImg').src = '/uploads/' + data.profilePic;
+                    // Display base64 image directly
+                    document.getElementById('profileImg').src = data.profilePic;
                 }
                 
                 // Load bank accounts for profile
                 if (document.getElementById('bankAccountsDisplay')) {
-                    fetch(API_BASE + '/api/bank-accounts')
+                    fetch(API_BASE + '/api/bank-accounts?userEmail=' + encodeURIComponent(userEmail))
                     .then(res => res.json())
                     .then(bankData => {
                         const bankDisplay = document.getElementById('bankAccountsDisplay');
@@ -97,22 +99,31 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const formData = new FormData();
             const fileInput = document.getElementById('profilePic');
+            const userEmail = localStorage.getItem('userEmail');
+            
+            if (!userEmail) {
+                alert('Please login first');
+                return;
+            }
+            
             if (fileInput.files.length > 0) {
                 formData.append('profilePic', fileInput.files[0]);
+                formData.append('userEmail', userEmail);
+                
                 fetch(API_BASE + '/api/upload-profile-pic', {
                     method: 'POST',
                     body: formData
                 })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.filename) {
-                        document.getElementById('profileImg').src = '/uploads/' + data.filename;
+                    if (data.profilePic) {
+                        document.getElementById('profileImg').src = data.profilePic;
                         alert('Profile picture uploaded successfully');
                     } else {
                         alert(data.message);
                     }
                 })
-                .catch(err => alert('Upload failed'));
+                .catch(err => alert('Upload failed: ' + err.message));
             } else {
                 alert('Please select a file');
             }
@@ -291,7 +302,8 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => console.log('No user data'));
 
-        fetch(API_BASE + '/api/transactions')
+        const userEmail = localStorage.getItem('userEmail');
+        fetch(API_BASE + '/api/transactions?userEmail=' + encodeURIComponent(userEmail))
         .then(res => res.json())
         .then(data => {
             const list = document.getElementById('transactionList');
@@ -333,7 +345,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Bank Accounts Management
     const bankAccountsList = document.getElementById('bankAccountsList');
     if (bankAccountsList) {
-        fetch(API_BASE + '/api/bank-accounts')
+        const userEmail = localStorage.getItem('userEmail');
+        fetch(API_BASE + '/api/bank-accounts?userEmail=' + encodeURIComponent(userEmail))
         .then(res => res.json())
         .then(data => {
             if (data.bankAccounts && data.bankAccounts.length > 0) {
@@ -408,7 +421,8 @@ function toggleBankSelect(selectElement) {
 }
 
 function loadBankAccountsForPayment() {
-    fetch(API_BASE + '/api/bank-accounts')
+    const userEmail = localStorage.getItem('userEmail');
+    fetch(API_BASE + '/api/bank-accounts?userEmail=' + encodeURIComponent(userEmail))
     .then(res => res.json())
     .then(data => {
         const accountSelect = document.getElementById('accountNumber');
