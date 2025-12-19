@@ -153,21 +153,40 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
+    console.log('Login attempt - Email:', email);
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({ email, password });
+            // First check if user exists
+            const allUsers = await usersCollection.find({}).limit(10).toArray();
+            console.log('Total users in DB:', allUsers.length);
+            console.log('User emails:', allUsers.map(u => u.email));
+            
+            user = await usersCollection.findOne({ email: email });
+            if (user) {
+                console.log('User found, checking password...');
+                if (user.password === password) {
+                    console.log('Password match!');
+                    res.json({ user });
+                } else {
+                    console.log('Password mismatch');
+                    res.status(401).json({ message: 'Invalid credentials - wrong password' });
+                }
+            } else {
+                console.log('User not found with email:', email);
+                res.status(401).json({ message: 'Invalid credentials - email not found' });
+            }
         } else {
             user = users.find(u => u.email === email && u.password === password);
-        }
-        if (user) {
-            res.json({ user });
-        } else {
-            res.status(401).json({ message: 'Invalid credentials' });
+            if (user) {
+                res.json({ user });
+            } else {
+                res.status(401).json({ message: 'Invalid credentials' });
+            }
         }
     } catch (err) {
         console.error('Login error:', err);
-        res.status(500).json({ message: 'Login failed' });
+        res.status(500).json({ message: 'Login failed: ' + err.message });
     }
 });
 
