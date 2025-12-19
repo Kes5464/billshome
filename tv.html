@@ -35,6 +35,19 @@
                 <option value="Premium">Premium - ₦2,500</option>
                 <option value="Ultimate">Ultimate - ₦5,000</option>
             </select>
+            
+            <label for="paymentMethod">Payment Method:</label>
+            <select id="paymentMethod" required onchange="toggleBankSelect(this)">
+                <option value="wallet">Wallet Balance</option>
+                <option value="bank">Bank Account</option>
+            </select>
+            
+            <div id="bankAccountSelect" style="display: none;">
+                <label for="accountNumber">Select Bank Account:</label>
+                <select id="accountNumber"></select>
+                <p><small><a href="bank-accounts.html">Manage Bank Accounts</a></small></p>
+            </div>
+            
             <label for="pin">Transaction PIN:</label>
             <input type="password" id="pin" maxlength="4" pattern="\d{4}" required>
             <button type="submit">Subscribe</button>

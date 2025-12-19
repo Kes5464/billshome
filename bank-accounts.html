@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>billsHOME - Bank Accounts</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Bank Accounts</h1>
+        <nav>
+            <a href="index.html">Home</a> |
+            <a href="profile.html">Profile</a> |
+            <a href="airtime.html">Airtime</a> |
+            <a href="data.html">Data</a> |
+            <a href="tv.html">TV</a>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h2>Linked Bank Accounts</h2>
+            <div id="bankAccountsList"></div>
+        </section>
+
+        <section>
+            <h2>Link New Bank Account</h2>
+            <form id="linkBankForm">
+                <label for="accountBank">Bank:</label>
+                <select id="accountBank" required>
+                    <option value="">Select Bank</option>
+                    <option value="044">Access Bank</option>
+                    <option value="063">Access Bank (Diamond)</option>
+                    <option value="035A">ALAT by WEMA</option>
+                    <option value="401">ASO Savings and Loans</option>
+                    <option value="050">Ecobank Nigeria</option>
+                    <option value="562">Ekondo Microfinance Bank</option>
+                    <option value="070">Fidelity Bank</option>
+                    <option value="011">First Bank of Nigeria</option>
+                    <option value="214">First City Monument Bank</option>
+                    <option value="058">Guaranty Trust Bank</option>
+                    <option value="030">Heritage Bank</option>
+                    <option value="301">Jaiz Bank</option>
+                    <option value="082">Keystone Bank</option>
+                    <option value="526">Parallex Bank</option>
+                    <option value="076">Polaris Bank</option>
+                    <option value="101">Providus Bank</option>
+                    <option value="221">Stanbic IBTC Bank</option>
+                    <option value="068">Standard Chartered Bank</option>
+                    <option value="232">Sterling Bank</option>
+                    <option value="100">Suntrust Bank</option>
+                    <option value="032">Union Bank of Nigeria</option>
+                    <option value="033">United Bank For Africa</option>
+                    <option value="215">Unity Bank</option>
+                    <option value="035">Wema Bank</option>
+                    <option value="057">Zenith Bank</option>
+                </select>
+                
+                <label for="accountNumber">Account Number:</label>
+                <input type="text" id="accountNumber" maxlength="10" pattern="\d{10}" required>
+                
+                <label for="linkPin">Transaction PIN:</label>
+                <input type="password" id="linkPin" maxlength="4" pattern="\d{4}" required>
+                
+                <button type="submit">Link Account</button>
+            </form>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>

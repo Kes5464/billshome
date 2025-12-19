@@ -16,7 +16,8 @@
             <a href="airtime.html">Airtime</a> |
             <a href="data.html">Data</a> |
             <a href="sportybet.html">SportyBet</a> |
-            <a href="tv.html">TV Subscription</a>
+            <a href="tv.html">TV Subscription</a> |
+            <a href="bank-accounts.html">Bank Accounts</a>
         </nav>
     </header>
     <main id="profileContent">
@@ -24,6 +25,11 @@
         <p id="userName">Name: John Doe</p>
         <p id="userEmail">Email: john@example.com</p>
         <p id="userBalance">Balance: ₦0.00</p>
+        <div id="linkedBanks">
+            <h3>Linked Bank Accounts</h3>
+            <div id="bankAccountsDisplay"></div>
+            <p><a href="bank-accounts.html">Manage Bank Accounts</a></p>
+        </div>
         <form id="depositForm">
             <input type="number" id="depositAmount" placeholder="Amount to deposit" min="0.01" step="0.01" required>
             <input type="password" id="depositPin" placeholder="Transaction PIN" maxlength="4" pattern="\d{4}" required>

@@ -115,6 +115,10 @@ app.get('/tv.html', (req, res) => {
     res.sendFile(__dirname + '/tv.html');
 });
 
+app.get('/bank-accounts.html', (req, res) => {
+    res.sendFile(__dirname + '/bank-accounts.html');
+});
+
 app.get('/payment-success.html', (req, res) => {
     res.sendFile(__dirname + '/payment-success.html');
 });
@@ -321,6 +325,187 @@ app.post('/api/change-pin', async (req, res) => {
     }
 });
 
+// Link bank account using Flutterwave
+app.post('/api/link-bank-account', async (req, res) => {
+    const { accountNumber, accountBank, pin } = req.body;
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+
+        if (!user || user.pin !== pin) {
+            return res.status(400).json({ message: 'Invalid PIN' });
+        }
+
+        // Verify account with Flutterwave
+        const payload = {
+            account_number: accountNumber,
+            account_bank: accountBank
+        };
+
+        const response = await flw.Misc.verify_Account(payload);
+
+        if (response.status === 'success') {
+            const bankAccount = {
+                accountNumber: accountNumber,
+                accountBank: accountBank,
+                accountName: response.data.account_name,
+                linkedAt: new Date().toISOString(),
+                isDefault: user.bankAccounts ? user.bankAccounts.length === 0 : true
+            };
+
+            if (usersCollection) {
+                await usersCollection.updateOne(
+                    { _id: user._id },
+                    { $push: { bankAccounts: bankAccount } }
+                );
+            } else {
+                if (!users[0].bankAccounts) users[0].bankAccounts = [];
+                users[0].bankAccounts.push(bankAccount);
+                writeUsers(users);
+            }
+
+            res.json({ 
+                message: 'Bank account linked successfully', 
+                account: bankAccount 
+            });
+        } else {
+            res.status(400).json({ message: 'Invalid bank account details' });
+        }
+    } catch (err) {
+        console.error('Link bank error:', err);
+        res.status(500).json({ message: 'Failed to link bank account: ' + err.message });
+    }
+});
+
+// Get linked bank accounts
+app.get('/api/bank-accounts', async (req, res) => {
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+        if (user) {
+            res.json({ bankAccounts: user.bankAccounts || [] });
+        } else {
+            res.status(404).json({ message: 'No user found' });
+        }
+    } catch (err) {
+        console.error('Bank accounts error:', err);
+        res.status(500).json({ message: 'Failed to load bank accounts' });
+    }
+});
+
+// Remove linked bank account
+app.post('/api/remove-bank-account', async (req, res) => {
+    const { accountNumber, pin } = req.body;
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+
+        if (!user || user.pin !== pin) {
+            return res.status(400).json({ message: 'Invalid PIN' });
+        }
+
+        if (usersCollection) {
+            await usersCollection.updateOne(
+                { _id: user._id },
+                { $pull: { bankAccounts: { accountNumber: accountNumber } } }
+            );
+        } else {
+            users[0].bankAccounts = users[0].bankAccounts.filter(acc => acc.accountNumber !== accountNumber);
+            writeUsers(users);
+        }
+
+        res.json({ message: 'Bank account removed successfully' });
+    } catch (err) {
+        console.error('Remove bank error:', err);
+        res.status(500).json({ message: 'Failed to remove bank account' });
+    }
+});
+
+// Charge bank account for purchases
+app.post('/api/charge-bank-account', async (req, res) => {
+    const { accountNumber, amount, pin, description } = req.body;
+    try {
+        let user;
+        if (usersCollection) {
+            user = await usersCollection.findOne({});
+        } else {
+            user = users.length > 0 ? users[0] : null;
+        }
+
+        if (!user || user.pin !== pin) {
+            return res.status(400).json({ message: 'Invalid PIN' });
+        }
+
+        const bankAccount = user.bankAccounts?.find(acc => acc.accountNumber === accountNumber);
+        if (!bankAccount) {
+            return res.status(400).json({ message: 'Bank account not linked' });
+        }
+
+        // Charge bank account using Flutterwave
+        const payload = {
+            tx_ref: `bank_charge_${Date.now()}_${user._id || 'local'}`,
+            amount: parseFloat(amount),
+            currency: 'NGN',
+            account_bank: bankAccount.accountBank,
+            account_number: accountNumber,
+            email: user.email,
+            phone_number: user.phone || '08000000000',
+            fullname: user.name
+        };
+
+        const response = await flw.Charge.ng_account(payload);
+
+        if (response.status === 'success') {
+            // Add to user balance
+            const newBalance = user.balance + parseFloat(amount);
+            const transaction = {
+                type: 'Bank Transfer',
+                amount: parseFloat(amount),
+                date: new Date().toISOString(),
+                reference: payload.tx_ref,
+                description: description || 'Bank account charge'
+            };
+
+            if (usersCollection) {
+                await usersCollection.updateOne(
+                    { _id: user._id },
+                    {
+                        $set: { balance: newBalance },
+                        $push: { transactions: transaction }
+                    }
+                );
+            } else {
+                users[0].balance = newBalance;
+                users[0].transactions.push(transaction);
+                writeUsers(users);
+            }
+
+            res.json({ 
+                message: 'Payment successful', 
+                balance: newBalance,
+                reference: payload.tx_ref
+            });
+        } else {
+            res.status(400).json({ message: response.message || 'Payment failed' });
+        }
+    } catch (err) {
+        console.error('Charge bank error:', err);
+        res.status(500).json({ message: 'Payment failed: ' + err.message });
+    }
+});
+
 app.get('/api/transactions', async (req, res) => {
     try {
         let user;
@@ -366,7 +551,7 @@ app.get('/api/user-data', async (req, res) => {
 });
 
 app.post('/api/airtime', async (req, res) => {
-    const { network, phone, amount, pin } = req.body;
+    const { network, phone, amount, pin, paymentMethod, accountNumber } = req.body;
     const cost = parseFloat(amount);
     try {
         let user;
@@ -379,8 +564,37 @@ app.post('/api/airtime', async (req, res) => {
         if (!user || user.pin !== pin) {
             return res.status(400).json({ message: 'Invalid PIN' });
         }
-        if (user.balance < cost) {
-            return res.status(400).json({ message: 'Insufficient balance' });
+
+        // Check payment method
+        if (paymentMethod === 'bank' && accountNumber) {
+            // Pay directly from bank account
+            const bankAccount = user.bankAccounts?.find(acc => acc.accountNumber === accountNumber);
+            if (!bankAccount) {
+                return res.status(400).json({ message: 'Bank account not linked' });
+            }
+
+            // Charge bank and make purchase
+            const chargePayload = {
+                tx_ref: `airtime_bank_${Date.now()}_${user._id || 'local'}`,
+                amount: cost,
+                currency: 'NGN',
+                account_bank: bankAccount.accountBank,
+                account_number: accountNumber,
+                email: user.email,
+                phone_number: phone,
+                fullname: user.name
+            };
+
+            const chargeResponse = await flw.Charge.ng_account(chargePayload);
+            
+            if (chargeResponse.status !== 'success') {
+                return res.status(400).json({ message: 'Bank charge failed' });
+            }
+        } else {
+            // Pay from wallet balance
+            if (user.balance < cost) {
+                return res.status(400).json({ message: 'Insufficient balance' });
+            }
         }
 
         // Make real Flutterwave Bill Payment API call
@@ -396,14 +610,15 @@ app.post('/api/airtime', async (req, res) => {
         const response = await flw.Bills.create_bill(payload);
 
         if (response.status === 'success') {
-            const newBalance = user.balance - cost;
+            const newBalance = paymentMethod === 'wallet' ? user.balance - cost : user.balance;
             const transaction = { 
                 type: 'Airtime Purchase', 
                 amount: -cost, 
                 date: new Date().toISOString(),
                 reference: payload.reference,
                 phone: phone,
-                network: network
+                network: network,
+                paymentMethod: paymentMethod === 'bank' ? 'Bank Account' : 'Wallet'
             };
 
             if (usersCollection) {

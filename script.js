@@ -60,6 +60,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.profilePic) {
                     document.getElementById('profileImg').src = '/uploads/' + data.profilePic;
                 }
+                
+                // Load bank accounts for profile
+                if (document.getElementById('bankAccountsDisplay')) {
+                    fetch(API_BASE + '/api/bank-accounts')
+                    .then(res => res.json())
+                    .then(bankData => {
+                        const bankDisplay = document.getElementById('bankAccountsDisplay');
+                        if (bankData.bankAccounts && bankData.bankAccounts.length > 0) {
+                            bankDisplay.innerHTML = '';
+                            bankData.bankAccounts.forEach(account => {
+                                const p = document.createElement('p');
+                                p.textContent = `${account.accountName} - ${account.accountNumber}`;
+                                bankDisplay.appendChild(p);
+                            });
+                        } else {
+                            bankDisplay.innerHTML = '<p><em>No bank accounts linked</em></p>';
+                        }
+                    })
+                    .catch(err => console.log('Failed to load bank accounts'));
+                }
             } else {
                 document.getElementById('userName').textContent = 'No user data';
             }
@@ -141,16 +161,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const airtimeForm = document.getElementById('airtimeForm');
     if (airtimeForm) {
+        // Load bank accounts for payment selection
+        loadBankAccountsForPayment();
+        
         airtimeForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const network = document.getElementById('network').value;
             const phone = document.getElementById('phone').value;
             const amount = document.getElementById('amount').value;
             const pin = document.getElementById('pin').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const accountNumber = paymentMethod === 'bank' ? document.getElementById('accountNumber').value : null;
+            
             fetch(API_BASE + '/api/airtime', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ network, phone, amount, pin })
+                body: JSON.stringify({ network, phone, amount, pin, paymentMethod, accountNumber })
             })
             .then(res => res.json())
             .then(data => {
@@ -165,16 +191,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const dataForm = document.getElementById('dataForm');
     if (dataForm) {
+        // Load bank accounts for payment selection
+        loadBankAccountsForPayment();
+        
         dataForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const network = document.getElementById('network').value;
             const phone = document.getElementById('phone').value;
             const plan = document.getElementById('plan').value;
             const pin = document.getElementById('pin').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const accountNumber = paymentMethod === 'bank' ? document.getElementById('accountNumber').value : null;
+            
             fetch(API_BASE + '/api/data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, plan, network, pin })
+                body: JSON.stringify({ phone, plan, network, pin, paymentMethod, accountNumber })
             })
             .then(res => res.json())
             .then(data => {
@@ -212,16 +244,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const tvForm = document.getElementById('tvForm');
     if (tvForm) {
+        // Load bank accounts for payment selection
+        loadBankAccountsForPayment();
+        
         tvForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const provider = document.getElementById('provider').value;
             const smartcard = document.getElementById('smartcard').value;
             const plan = document.getElementById('plan').value;
             const pin = document.getElementById('pin').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const accountNumber = paymentMethod === 'bank' ? document.getElementById('accountNumber').value : null;
+            
             fetch(API_BASE + '/api/tv', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider, plan, smartcard, pin })
+                body: JSON.stringify({ provider, plan, smartcard, pin, paymentMethod, accountNumber })
             })
             .then(res => res.json())
             .then(data => {
@@ -283,4 +321,100 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => alert('Funding failed'));
         });
     }
+
+    // Bank Accounts Management
+    const bankAccountsList = document.getElementById('bankAccountsList');
+    if (bankAccountsList) {
+        fetch(API_BASE + '/api/bank-accounts')
+        .then(res => res.json())
+        .then(data => {
+            if (data.bankAccounts && data.bankAccounts.length > 0) {
+                data.bankAccounts.forEach(account => {
+                    const div = document.createElement('div');
+                    div.className = 'bank-account-item';
+                    div.innerHTML = `
+                        <p><strong>${account.accountName}</strong></p>
+                        <p>${account.accountNumber} - Bank Code: ${account.accountBank}</p>
+                        <button onclick="removeBank('${account.accountNumber}')">Remove</button>
+                    `;
+                    bankAccountsList.appendChild(div);
+                });
+            } else {
+                bankAccountsList.innerHTML = '<p>No bank accounts linked yet.</p>';
+            }
+        })
+        .catch(err => console.log('Failed to load bank accounts'));
+    }
+
+    const linkBankForm = document.getElementById('linkBankForm');
+    if (linkBankForm) {
+        linkBankForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const accountNumber = document.getElementById('accountNumber').value;
+            const accountBank = document.getElementById('accountBank').value;
+            const pin = document.getElementById('linkPin').value;
+            
+            fetch(API_BASE + '/api/link-bank-account', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accountNumber, accountBank, pin })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                if (data.account) {
+                    location.reload();
+                }
+            })
+            .catch(err => alert('Failed to link bank account'));
+        });
+    }
 });
+
+function removeBank(accountNumber) {
+    const pin = prompt('Enter your PIN to remove this account:');
+    if (!pin) return;
+    
+    fetch(API_BASE + '/api/remove-bank-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountNumber, pin })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        location.reload();
+    })
+    .catch(err => alert('Failed to remove bank account'));
+}
+
+function toggleBankSelect(selectElement) {
+    const bankAccountDiv = document.getElementById('bankAccountSelect');
+    if (selectElement.value === 'bank') {
+        bankAccountDiv.style.display = 'block';
+    } else {
+        bankAccountDiv.style.display = 'none';
+    }
+}
+
+function loadBankAccountsForPayment() {
+    fetch(API_BASE + '/api/bank-accounts')
+    .then(res => res.json())
+    .then(data => {
+        const accountSelect = document.getElementById('accountNumber');
+        if (accountSelect && data.bankAccounts) {
+            accountSelect.innerHTML = '';
+            if (data.bankAccounts.length === 0) {
+                accountSelect.innerHTML = '<option value="">No accounts linked</option>';
+            } else {
+                data.bankAccounts.forEach(account => {
+                    const option = document.createElement('option');
+                    option.value = account.accountNumber;
+                    option.textContent = `${account.accountName} - ${account.accountNumber}`;
+                    accountSelect.appendChild(option);
+                });
+            }
+        }
+    })
+    .catch(err => console.log('Failed to load bank accounts'));
+}
