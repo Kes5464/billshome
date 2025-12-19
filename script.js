@@ -2,6 +2,17 @@
 const API_BASE = ''; // Leave empty for relative URLs (same server), or set to 'https://your-vercel-url.vercel.app' for separate hosting
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Check if user is logged in for protected pages
+    const protectedPages = ['profile.html', 'airtime.html', 'data.html', 'tv.html', 'sportybet.html', 'bank-accounts.html', 'index.html'];
+    const currentPage = window.location.pathname.split('/').pop();
+    const userEmail = localStorage.getItem('userEmail');
+    
+    if (protectedPages.includes(currentPage) && !userEmail) {
+        alert('Please login first');
+        window.location.href = 'login.html';
+        return;
+    }
+
     // Logout functionality
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
