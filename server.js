@@ -190,6 +190,30 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// Test endpoint to check database connection
+app.get('/api/test-db', async (req, res) => {
+    try {
+        if (usersCollection) {
+            const count = await usersCollection.countDocuments();
+            const users = await usersCollection.find({}).limit(5).toArray();
+            res.json({ 
+                status: 'Connected to MongoDB',
+                userCount: count,
+                sampleEmails: users.map(u => u.email),
+                mongoUri: MONGODB_URI ? 'SET' : 'NOT SET'
+            });
+        } else {
+            res.json({ 
+                status: 'Using file storage',
+                userCount: users.length,
+                sampleEmails: users.map(u => u.email)
+            });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message, stack: err.stack });
+    }
+});
+
 app.get('/api/profile', async (req, res) => {
     const userEmail = req.query.userEmail;
     
