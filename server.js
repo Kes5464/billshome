@@ -208,7 +208,7 @@ app.post('/api/upload-profile-pic', upload.single('profilePic'), (req, res) => {
 });
 
 app.post('/api/deposit', async (req, res) => {
-    const { amount, pin } = req.body;
+    const { amount, pin, userEmail } = req.body;
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) {
         return res.status(400).json({ message: 'Invalid amount' });
@@ -217,9 +217,9 @@ app.post('/api/deposit', async (req, res) => {
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
 
         if (!user || user.pin !== pin) {
@@ -293,13 +293,13 @@ app.post('/api/flutterwave-webhook', async (req, res) => {
 });
 
 app.post('/api/change-pin', async (req, res) => {
-    const { currentPin, newPin } = req.body;
+    const { currentPin, newPin, userEmail } = req.body;
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
 
         if (!user) {
@@ -327,13 +327,13 @@ app.post('/api/change-pin', async (req, res) => {
 
 // Link bank account using Flutterwave
 app.post('/api/link-bank-account', async (req, res) => {
-    const { accountNumber, accountBank, pin } = req.body;
+    const { accountNumber, accountBank, pin, userEmail } = req.body;
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
 
         if (!user || user.pin !== pin) {
@@ -403,13 +403,13 @@ app.get('/api/bank-accounts', async (req, res) => {
 
 // Remove linked bank account
 app.post('/api/remove-bank-account', async (req, res) => {
-    const { accountNumber, pin } = req.body;
+    const { accountNumber, pin, userEmail } = req.body;
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
 
         if (!user || user.pin !== pin) {
@@ -435,13 +435,13 @@ app.post('/api/remove-bank-account', async (req, res) => {
 
 // Charge bank account for purchases
 app.post('/api/charge-bank-account', async (req, res) => {
-    const { accountNumber, amount, pin, description } = req.body;
+    const { accountNumber, amount, pin, description, userEmail } = req.body;
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
 
         if (!user || user.pin !== pin) {
@@ -551,14 +551,14 @@ app.get('/api/user-data', async (req, res) => {
 });
 
 app.post('/api/airtime', async (req, res) => {
-    const { network, phone, amount, pin, paymentMethod, accountNumber } = req.body;
+    const { network, phone, amount, pin, paymentMethod, accountNumber, userEmail } = req.body;
     const cost = parseFloat(amount);
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
 
         if (!user || user.pin !== pin) {
@@ -653,7 +653,7 @@ const dataPrices = { '1GB': 500, '5GB': 2000, '10GB': 3500 };
 const dataBillerCodes = { '1GB': 'BIL099', '5GB': 'BIL099', '10GB': 'BIL099' };
 
 app.post('/api/data', async (req, res) => {
-    const { phone, plan, network, pin } = req.body;
+    const { phone, plan, network, pin, paymentMethod, accountNumber, userEmail } = req.body;
     const cost = dataPrices[plan];
     if (!cost) {
         return res.status(400).json({ message: 'Invalid plan' });
@@ -661,9 +661,9 @@ app.post('/api/data', async (req, res) => {
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
 
         if (!user || user.pin !== pin) {
@@ -725,14 +725,14 @@ app.post('/api/data', async (req, res) => {
 });
 
 app.post('/api/bet', async (req, res) => {
-    const { stake, odds, pin } = req.body;
+    const { stake, odds, pin, userEmail } = req.body;
     const cost = parseFloat(stake);
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
 
         if (!user || user.pin !== pin) {
@@ -774,7 +774,7 @@ const tvBillerCodes = {
 };
 
 app.post('/api/tv', async (req, res) => {
-    const { provider, plan, smartcard, pin } = req.body;
+    const { provider, plan, smartcard, pin, paymentMethod, accountNumber, userEmail } = req.body;
     const cost = tvPrices[plan];
     if (!cost) {
         return res.status(400).json({ message: 'Invalid plan' });
@@ -782,9 +782,9 @@ app.post('/api/tv', async (req, res) => {
     try {
         let user;
         if (usersCollection) {
-            user = await usersCollection.findOne({});
+            user = await usersCollection.findOne({ email: userEmail });
         } else {
-            user = users.length > 0 ? users[0] : null;
+            user = users.find(u => u.email === userEmail);
         }
 
         if (!user || user.pin !== pin) {

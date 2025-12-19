@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(data => {
                 if (data.user) {
+                    // Store user email in localStorage for authentication
+                    localStorage.setItem('userEmail', data.user.email);
                     alert('Login successful');
                     window.location.href = 'profile.html';
                 } else {
@@ -123,10 +125,11 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const amount = document.getElementById('depositAmount').value;
             const pin = document.getElementById('depositPin').value;
+            const userEmail = localStorage.getItem('userEmail');
             fetch(API_BASE + '/api/deposit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount, pin })
+                body: JSON.stringify({ amount, pin, userEmail })
             })
             .then(res => res.json())
             .then(data => {
@@ -146,10 +149,11 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const currentPin = document.getElementById('currentPin').value;
             const newPin = document.getElementById('newPin').value;
+            const userEmail = localStorage.getItem('userEmail');
             fetch(API_BASE + '/api/change-pin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ currentPin, newPin })
+                body: JSON.stringify({ currentPin, newPin, userEmail })
             })
             .then(res => res.json())
             .then(data => {
@@ -172,11 +176,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const pin = document.getElementById('pin').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
             const accountNumber = paymentMethod === 'bank' ? document.getElementById('accountNumber').value : null;
+            const userEmail = localStorage.getItem('userEmail');
             
             fetch(API_BASE + '/api/airtime', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ network, phone, amount, pin, paymentMethod, accountNumber })
+                body: JSON.stringify({ network, phone, amount, pin, paymentMethod, accountNumber, userEmail })
             })
             .then(res => res.json())
             .then(data => {
@@ -202,11 +207,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const pin = document.getElementById('pin').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
             const accountNumber = paymentMethod === 'bank' ? document.getElementById('accountNumber').value : null;
+            const userEmail = localStorage.getItem('userEmail');
             
             fetch(API_BASE + '/api/data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, plan, network, pin, paymentMethod, accountNumber })
+                body: JSON.stringify({ phone, plan, network, pin, paymentMethod, accountNumber, userEmail })
             })
             .then(res => res.json())
             .then(data => {
@@ -226,10 +232,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const stake = document.getElementById('stake').value;
             const odds = document.getElementById('odds').value;
             const pin = document.getElementById('pin').value;
+            const userEmail = localStorage.getItem('userEmail');
             fetch(API_BASE + '/api/bet', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stake, odds, pin })
+                body: JSON.stringify({ stake, odds, pin, userEmail })
             })
             .then(res => res.json())
             .then(data => {
@@ -255,11 +262,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const pin = document.getElementById('pin').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
             const accountNumber = paymentMethod === 'bank' ? document.getElementById('accountNumber').value : null;
+            const userEmail = localStorage.getItem('userEmail');
             
             fetch(API_BASE + '/api/tv', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider, plan, smartcard, pin, paymentMethod, accountNumber })
+                body: JSON.stringify({ provider, plan, smartcard, pin, paymentMethod, accountNumber, userEmail })
             })
             .then(res => res.json())
             .then(data => {
@@ -353,11 +361,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const accountNumber = document.getElementById('accountNumber').value;
             const accountBank = document.getElementById('accountBank').value;
             const pin = document.getElementById('linkPin').value;
+            const userEmail = localStorage.getItem('userEmail');
             
             fetch(API_BASE + '/api/link-bank-account', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accountNumber, accountBank, pin })
+                body: JSON.stringify({ accountNumber, accountBank, pin, userEmail })
             })
             .then(res => res.json())
             .then(data => {
@@ -374,11 +383,12 @@ document.addEventListener('DOMContentLoaded', function() {
 function removeBank(accountNumber) {
     const pin = prompt('Enter your PIN to remove this account:');
     if (!pin) return;
+    const userEmail = localStorage.getItem('userEmail');
     
     fetch(API_BASE + '/api/remove-bank-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountNumber, pin })
+        body: JSON.stringify({ accountNumber, pin, userEmail })
     })
     .then(res => res.json())
     .then(data => {
