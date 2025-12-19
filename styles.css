@@ -161,17 +161,11 @@ button:active {
     margin-bottom: 1rem;
     border: 5px solid #667eea;
     transition: all 0.3s ease;
-    animation: rotate 5s linear infinite;
-}
-
-@keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
 }
 
 .profile-pic:hover {
     border-color: #764ba2;
-    transform: scale(1.1);
+    transform: scale(1.05);
 }
 
 ul {
