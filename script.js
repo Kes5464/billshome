@@ -2,6 +2,16 @@
 const API_BASE = ''; // Leave empty for relative URLs (same server), or set to 'https://your-vercel-url.vercel.app' for separate hosting
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Logout functionality
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            localStorage.removeItem('userEmail');
+            alert('Logged out successfully');
+            window.location.href = 'login.html';
+        });
+    }
+
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', function(e) {
